@@ -51,6 +51,8 @@ function saveAccounts() {
       credits: a.credits || null,
       blockedModels: a.blockedModels || [],
       refreshToken: a.refreshToken || '',
+      username: a.username || '',
+      password: a.password || '',
     }));
     writeFileSync(ACCOUNTS_FILE, JSON.stringify(data, null, 2));
   } catch (e) {
@@ -78,6 +80,8 @@ function loadAccounts() {
         lastProbed: a.lastProbed || 0,
         credits: a.credits || null,
         blockedModels: Array.isArray(a.blockedModels) ? a.blockedModels : [],
+        username: a.username || '',
+        password: a.password || '',
       });
     }
     if (data.length > 0) log.info(`Loaded ${data.length} account(s) from disk`);
@@ -119,7 +123,7 @@ async function registerWithCodeium(idToken) {
 /**
  * Add account via API key.
  */
-export function addAccountByKey(apiKey, label = '') {
+export function addAccountByKey(apiKey, label = '', credentials = {}) {
   const existing = accounts.find(a => a.apiKey === apiKey);
   if (existing) return existing;
 
@@ -140,6 +144,8 @@ export function addAccountByKey(apiKey, label = '') {
     capabilities: {},
     lastProbed: 0,
     blockedModels: [],
+    username: credentials.username || '',
+    password: credentials.password || '',
   };
   account.credits = null;
   accounts.push(account);
@@ -152,7 +158,7 @@ export function addAccountByKey(apiKey, label = '') {
 /**
  * Add account via auth token.
  */
-export async function addAccountByToken(token, label = '') {
+export async function addAccountByToken(token, label = '', credentials = {}) {
   const reg = await registerWithCodeium(token);
   const existing = accounts.find(a => a.apiKey === reg.apiKey);
   if (existing) return existing;
@@ -175,6 +181,8 @@ export async function addAccountByToken(token, label = '') {
     lastProbed: 0,
     blockedModels: [],
     credits: null,
+    username: credentials.username || '',
+    password: credentials.password || '',
   };
   accounts.push(account);
   saveAccounts();
@@ -190,7 +198,7 @@ export async function addAccountByToken(token, label = '') {
  * Add account via Firebase refresh token.
  * Refreshes the token to get an idToken, then registers with Codeium for an API key.
  */
-export async function addAccountByRefreshToken(refreshToken, label = '') {
+export async function addAccountByRefreshToken(refreshToken, label = '', credentials = {}) {
   const { refreshFirebaseToken, reRegisterWithCodeium } = await import('./dashboard/windsurf-login.js');
 
   const { idToken, refreshToken: newRefresh } = await refreshFirebaseToken(refreshToken);
@@ -224,6 +232,8 @@ export async function addAccountByRefreshToken(refreshToken, label = '') {
     lastProbed: 0,
     blockedModels: [],
     credits: null,
+    username: credentials.username || '',
+    password: credentials.password || '',
   };
   accounts.push(account);
   saveAccounts();
@@ -322,6 +332,15 @@ export function updateAccountLabel(id, label) {
   const account = accounts.find(a => a.id === id);
   if (!account) return false;
   account.email = label;
+  saveAccounts();
+  return true;
+}
+
+export function setAccountCredentials(id, { username, password } = {}) {
+  const account = accounts.find(a => a.id === id);
+  if (!account) return false;
+  if (username != null) account.username = username;
+  if (password != null) account.password = password;
   saveAccounts();
   return true;
 }
@@ -603,6 +622,8 @@ export function getAccountList() {
       blockedModels: a.blockedModels || [],
       availableModels: getAvailableModelsForAccount(a),
       tierModels: getTierModels(a.tier || 'unknown'),
+      username: a.username || '',
+      password: a.password || '',
     };
   });
 }

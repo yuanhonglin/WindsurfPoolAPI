@@ -31,7 +31,6 @@ src/runtime-config.json
 .DS_Store
 .playwright-mcp/
 .claude/
-.windsurf/
 __pycache__/
 
 # Local-only content

@@ -10,7 +10,7 @@ import {
   isAuthenticated, probeAccount, ensureLsForAccount,
   refreshCredits, refreshAllCredits,
   setAccountBlockedModels, fetchAndMergeModelCatalog,
-  setAccountTokens,
+  setAccountTokens, setAccountCredentials,
 } from '../auth.js';
 import { restartLsForProxy } from '../langserver.js';
 import { getLsStatus, stopLanguageServer, startLanguageServer, isLanguageServerRunning } from '../langserver.js';
@@ -129,11 +129,15 @@ export async function handleDashboardApi(method, subpath, body, req, res) {
 
   if (subpath === '/accounts' && method === 'POST') {
     try {
+      const credentials = {
+        username: typeof body.username === 'string' ? body.username.trim() : '',
+        password: typeof body.password === 'string' ? body.password : '',
+      };
       let account;
       if (body.api_key) {
-        account = addAccountByKey(body.api_key, body.label);
+        account = addAccountByKey(body.api_key, body.label, credentials);
       } else if (body.token) {
-        account = await addAccountByToken(body.token, body.label);
+        account = await addAccountByToken(body.token, body.label, credentials);
       } else {
         return json(res, 400, { error: 'Provide api_key or token' });
       }
@@ -210,6 +214,12 @@ export async function handleDashboardApi(method, subpath, body, req, res) {
     if (body.label) updateAccountLabel(id, body.label);
     if (body.resetErrors) resetAccountErrors(id);
     if (Array.isArray(body.blockedModels)) setAccountBlockedModels(id, body.blockedModels);
+    if ('username' in body || 'password' in body) {
+      setAccountCredentials(id, {
+        username: body.username,
+        password: body.password,
+      });
+    }
     return json(res, 200, { success: true });
   }
 

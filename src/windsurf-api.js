@@ -162,6 +162,18 @@ function normalizeUserStatus(data) {
   // Legacy values come in hundredths; divide by 100 for display.
   const legacyDiv = (n) => (typeof n === 'number' ? n / 100 : null);
 
+  const asPercent = (value) => {
+    if (value == null) return null;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim().replace(/%$/, '');
+      if (!trimmed) return 0;
+      const num = Number(trimmed);
+      return Number.isFinite(num) ? num : null;
+    }
+    return null;
+  };
+
   // Unix timestamps may be numeric or string depending on server version.
   const asUnix = (v) => {
     if (v == null) return null;
@@ -172,8 +184,8 @@ function normalizeUserStatus(data) {
 
   const out = {
     planName: plan.planName || 'Unknown',
-    dailyPercent: typeof ps.dailyQuotaRemainingPercent === 'number' ? ps.dailyQuotaRemainingPercent : null,
-    weeklyPercent: typeof ps.weeklyQuotaRemainingPercent === 'number' ? ps.weeklyQuotaRemainingPercent : null,
+    dailyPercent: asPercent(ps.dailyQuotaRemainingPercent),
+    weeklyPercent: asPercent(ps.weeklyQuotaRemainingPercent),
     dailyResetAt: asUnix(ps.dailyQuotaResetAtUnix),
     weeklyResetAt: asUnix(ps.weeklyQuotaResetAtUnix),
     overageBalance: typeof ps.overageBalanceMicros === 'number' ? ps.overageBalanceMicros / 1_000_000 : null,

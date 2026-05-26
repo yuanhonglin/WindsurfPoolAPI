@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WindsurfPoolAPI 控制台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23991b1b'/><path d='M9 16l5-8v6h5l-5 8v-6H9z' fill='%23fff'/></svg>">
 <style>
 :root {
   --bg: #09090b;
@@ -779,6 +780,34 @@ tbody tr:hover td { background: var(--surface-2); }
   gap: 8px;
   border-top: 1px solid var(--border);
 }
+.modal-cred-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-cred-grid .cred-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modal-cred-grid .cred-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.modal-cred-grid .cred-value {
+  font-family: var(--font-mono, 'SFMono-Regular', Menlo, monospace);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-cred-grid .cred-value button {
+  margin-left: 8px;
+}
 
 /* ─── Login Overlay ───────────────────────────── */
 .login-overlay {
@@ -1421,6 +1450,16 @@ tbody tr:hover td { background: var(--surface-2); }
             <input id="acc-label" class="input" placeholder="可选">
           </div>
         </div>
+        <div class="field-row">
+          <div class="field" style="flex:1">
+            <label class="field-label">用户名（可选）</label>
+            <input id="acc-username" class="input" placeholder="某些提供商的登录邮箱">
+          </div>
+          <div class="field" style="flex:1">
+            <label class="field-label">密码（可选）</label>
+            <input id="acc-password" class="input" placeholder="用于记账的密码" type="password">
+          </div>
+        </div>
         <div class="field-row-actions">
           <button class="btn btn-primary" onclick="App.addAccount()">添加账号</button>
         </div>
@@ -1448,7 +1487,7 @@ tbody tr:hover td { background: var(--surface-2); }
       <div class="section-body tight">
         <div class="table-wrap">
           <table id="accounts-table">
-            <thead><tr><th style="width:32px"><input type="checkbox" id="acct-select-all" onchange="App.onSelectAllToggle(this.checked)"></th><th>ID</th><th>标签</th><th>层级</th><th>RPM</th><th>余额</th><th>可用模型</th><th>状态</th><th>错误</th><th>最后使用</th><th>Key</th><th>操作</th></tr></thead>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="acct-select-all" onchange="App.onSelectAllToggle(this.checked)"></th><th>ID</th><th>标签</th><th>层级</th><th>RPM</th><th>余额</th><th>有效期</th><th>可用模型</th><th>状态</th><th>错误</th><th>最后使用</th><th>Key</th><th>操作</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -2222,7 +2261,12 @@ const App = {
   }
     const tbody = document.querySelector('#accounts-table tbody');
     const tierLabel = { pro: 'PRO', free: 'FREE', expired: '已过期', unknown: '未知' };
-    tbody.innerHTML = (d.accounts || []).map(a => {
+    const sortedAccounts = (d.accounts || []).slice().sort((a, b) => {
+      const endA = a.credits?.planEnd ? new Date(a.credits.planEnd).getTime() : Infinity;
+      const endB = b.credits?.planEnd ? new Date(b.credits.planEnd).getTime() : Infinity;
+      return endA - endB;
+    });
+    tbody.innerHTML = sortedAccounts.map(a => {
       const tier = a.tier || 'unknown';
       // Compact summary: avail/total + 编辑 button. Clicking opens modal.
       const tierModels = a.tierModels || [];
@@ -2264,8 +2308,13 @@ const App = {
         const fetchedAgo = cr.fetchedAt ? Math.round((Date.now() - cr.fetchedAt) / 60000) + 'm ago' : '-';
 
         const barHtml = (label, pct, resetAt) => {
-          if (pct == null) return '';
-          const v = Math.max(0, Math.min(100, pct));
+          if (pct == null) {
+            if (!resetAt) return '';
+            pct = 0;
+          }
+          const num = typeof pct === 'string' ? Number(pct.trim().replace(/%$/, '')) : Number(pct);
+          if (!Number.isFinite(num)) return '';
+          const v = Math.max(0, Math.min(100, num));
           const color = v <= 10 ? 'var(--error)' : v <= 30 ? 'var(--warn, #f59e0b)' : 'var(--success, #10b981)';
           const resetStr = resetAt ? new Date(resetAt * 1000).toLocaleString() : '';
           return `<div style="margin-bottom:3px" title="${label} 剩余 ${v.toFixed(1)}%${resetStr ? '，重置: ' + resetStr : ''}">
@@ -2287,13 +2336,14 @@ const App = {
           cr.lastError ? `Last error: ${cr.lastError}` : '',
         ].filter(Boolean).join('\n');
 
+        const weeklyPercent = cr.weeklyPercent == null && cr.dailyPercent != null ? 0 : cr.weeklyPercent;
         creditCell = `<div style="min-width:140px" title="${this.esc(tipLines)}">
             <div class="text-xs" style="display:flex;justify-content:space-between;margin-bottom:3px">
               <span style="font-weight:600">${this.esc(planName.slice(0, 10))}</span>
               <span class="text-dim">${fetchedAgo}</span>
             </div>
             ${barHtml('日额度', cr.dailyPercent, cr.dailyResetAt)}
-            ${barHtml('周额度', cr.weeklyPercent, cr.weeklyResetAt)}
+            ${barHtml('周额度', weeklyPercent, cr.weeklyResetAt)}
             ${cr.prompt?.limit ? barHtml('Prompt', cr.percent, null) : ''}
           </div>`;
       }
@@ -2309,6 +2359,7 @@ const App = {
         <td><span class="tier ${tier}">${tierLabel[tier] || tier}</span></td>
         <td>${rpmCell}</td>
         <td>${creditCell}</td>
+        <td>${(() => { const cr = a.credits; if (!cr || !cr.planEnd) return '<span class="text-xs text-dim">-</span>'; const end = new Date(cr.planEnd); const now = new Date(); const diff = Math.ceil((end - now) / 86400000); const color = diff <= 0 ? 'var(--error)' : diff <= 7 ? 'var(--warn, #f59e0b)' : 'var(--text)'; return `<span class="text-xs nowrap" style="color:${color}" title="到期: ${end.toLocaleDateString()}">${end.toLocaleDateString()}${diff <= 7 ? ' (' + (diff <= 0 ? '已过期' : diff + '天') + ')' : ''}</span>`; })()}</td>
         <td>${capsHtml}</td>
         <td><span class="badge ${a.status}">${a.status}</span>${rateLimitBadge}</td>
         <td style="color:${a.errorCount > 0 ? 'var(--error)' : 'inherit'}">${a.errorCount}</td>
@@ -2324,14 +2375,15 @@ const App = {
               ? `<button class="btn btn-ghost btn-xs" onclick="App.toggleAccount('${a.id}','disabled')">停用</button>`
               : `<button class="btn btn-success btn-xs" onclick="App.toggleAccount('${a.id}','active')">启用</button>`}
             <button class="btn btn-ghost btn-xs" onclick="App.resetErrors('${a.id}')">重置</button>
+            <button class="btn btn-ghost btn-xs" onclick="App.openAccountCredentialModal('${a.id}')">账号详情</button>
             <button class="btn btn-ghost btn-xs" style="color:var(--error)" onclick="App.deleteAccount('${a.id}')">删除</button>
           </div>
         </td>
       </tr>
       <tr id="${detailId}" class="account-detail-row" style="display:none">
-        <td colspan="12">${this.renderAccountDetail(a, ov)}</td>
+        <td colspan="13">${this.renderAccountDetail(a, ov)}</td>
       </tr>`;
-    }).join('') || '<tr class="empty-row"><td colspan="12">暂无账号，请先添加</td></tr>';
+    }).join('') || '<tr class="empty-row"><td colspan="13">暂无账号，请先添加</td></tr>';
   },
 
   toggleAccountDetail(rowId, btn) {
@@ -2372,8 +2424,13 @@ const App = {
     `).join('') || '<div class="text-sm text-dim">暂无模型探测数据，可点击“探测”刷新。</div>';
 
     const quotaBlock = (label, pct, resetAt) => {
-      if (pct == null) return '';
-      const v = Math.max(0, Math.min(100, Number(pct) || 0));
+      if (pct == null) {
+        if (!resetAt) return '';
+        pct = 0;
+      }
+      const num = typeof pct === 'string' ? Number(pct.trim().replace(/%$/, '')) : Number(pct);
+      if (!Number.isFinite(num)) return '';
+      const v = Math.max(0, Math.min(100, num));
       const color = v <= 10 ? 'var(--error)' : v <= 30 ? 'var(--warn, #f59e0b)' : 'var(--success, #10b981)';
       const reset = resetAt ? new Date(resetAt * 1000).toLocaleString() : '未知';
       return `
@@ -2384,6 +2441,7 @@ const App = {
         </div>
       `;
     };
+    const weeklyPercent = cr.weeklyPercent == null && cr.dailyPercent != null ? 0 : cr.weeklyPercent;
     const lsMatches = (ov?.langServer?.instances || []).filter(i => i.accountId === a.id || i.key === a.callerKey);
     return `
       <div class="account-detail-wrap">
@@ -2399,7 +2457,7 @@ const App = {
             <div class="account-detail-title">订阅与额度</div>
             <div class="account-detail-kv"><span>计划</span><strong>${this.esc(cr.planName || a.tier || '-')}</strong></div>
             ${quotaBlock('日额度', cr.dailyPercent, cr.dailyResetAt)}
-            ${quotaBlock('周额度', cr.weeklyPercent, cr.weeklyResetAt)}
+            ${quotaBlock('周额度', weeklyPercent, cr.weeklyResetAt)}
             ${cr.lastError ? `<div class="account-detail-note" style="color:var(--error)">${this.esc(cr.lastError)}</div>` : ''}
           </div>
           <div class="account-detail-card">
@@ -2624,11 +2682,50 @@ const App = {
     const type = document.getElementById('acc-type').value;
     const key = document.getElementById('acc-key').value.trim();
     const label = document.getElementById('acc-label').value.trim();
+    const username = document.getElementById('acc-username').value.trim();
+    const password = document.getElementById('acc-password').value;
     if (!key) return this.toast('请输入 Key 或 Token', 'error');
-    const body = type === 'api_key' ? { api_key: key, label } : { token: key, label };
+    const body = type === 'api_key'
+      ? { api_key: key, label, username, password }
+      : { token: key, label, username, password };
     const r = await this.api('POST', '/accounts', body);
-    if (r.success) { this.toast('账号已添加'); document.getElementById('acc-key').value = ''; document.getElementById('acc-label').value = ''; this.loadAccounts(); }
+    if (r.success) {
+      this.toast('账号已添加');
+      document.getElementById('acc-key').value = '';
+      document.getElementById('acc-label').value = '';
+      document.getElementById('acc-username').value = '';
+      document.getElementById('acc-password').value = '';
+      this.loadAccounts();
+    }
     else this.toast(r.error || '添加失败', 'error');
+  },
+
+  async openAccountCredentialModal(id) {
+    try {
+      const d = await this.api('GET', '/accounts');
+      const acct = (d.accounts || []).find(a => a.id === id);
+      if (!acct) return this.toast('账号不存在', 'error');
+      const html = `
+        <div class="modal-cred-grid">
+          <div class="cred-field">
+            <span class="cred-label">用户名</span>
+            <div class="cred-value">
+              <span>${this.esc(acct.username || '未填写')}</span>
+              ${acct.username ? `<button class="btn btn-ghost btn-xs" data-value="${this.esc(acct.username)}" onclick="App.copyCredential(this, '用户名')">复制</button>` : ''}
+            </div>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">密码</span>
+            <div class="cred-value">
+              <span>${acct.password ? '******' : '未填写'}</span>
+              ${acct.password ? `<button class="btn btn-ghost btn-xs" data-value="${this.esc(acct.password)}" onclick="App.copyCredential(this, '密码')">复制</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      this.confirm(`账号详情 — ${acct.email || acct.id}`, html, { html: true, okText: '关闭' });
+    } catch (e) {
+      this.toast('加载失败: ' + e.message, 'error');
+    }
   },
 
   async toggleAccount(id, status) { await this.api('PATCH', `/accounts/${id}`, { status }); this.loadAccounts(); },
@@ -3426,11 +3523,11 @@ const App = {
     if (h > 0) return `${h}时 ${m}分`;
     return `${m}分 ${Math.floor(secs % 60)}秒`;
   },
-  copyKey(key) {
+  copyText(text, successMsg = '已复制') {
     const fallback = () => {
       try {
         const ta = document.createElement('textarea');
-        ta.value = key;
+        ta.value = text;
         ta.style.position = 'fixed';
         ta.style.left = '-9999px';
         document.body.appendChild(ta);
@@ -3438,16 +3535,22 @@ const App = {
         ta.select();
         const ok = document.execCommand('copy');
         ta.remove();
-        this.toast(ok ? 'API Key 已复制' : '复制失败，请手动选择', ok ? 'success' : 'error');
+        this.toast(ok ? successMsg : '复制失败，请手动选择', ok ? 'success' : 'error');
       } catch (e) {
         this.toast('复制失败: ' + e.message, 'error');
       }
     };
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(key).then(() => this.toast('API Key 已复制')).catch(fallback);
+      navigator.clipboard.writeText(text).then(() => this.toast(successMsg)).catch(fallback);
     } else {
       fallback();
     }
+  },
+  copyKey(key) { this.copyText(key, 'API Key 已复制'); },
+  copyCredential(btn, label) {
+    const value = btn?.dataset?.value || '';
+    if (!value) return this.toast(`${label}为空`, 'info');
+    this.copyText(value, `${label}已复制`);
   },
   esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); },
 };
