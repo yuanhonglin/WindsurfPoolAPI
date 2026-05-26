@@ -1,5 +1,5 @@
 ---
-description: Git 提交并推送代码，自动生成 commit message
+description: Git 提交并推送代码，自动生成 commit message，支持中文
 ---
 
 ## 流程
@@ -45,7 +45,7 @@ description: Git 提交并推送代码，自动生成 commit message
 // turbo
 1. 运行 `git push`
 2. 如果推送失败，停下来报告错误
-3. 如果成功，输出："✅ 已推送成功"
+3. 如果成功，输出："✅ 已推送成功" 并附上本次的 commit message 内容
 
 ## 规则
 - commit message 用中文，简洁描述改动内容
