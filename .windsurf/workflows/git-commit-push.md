@@ -13,7 +13,14 @@ description: Git 提交并推送代码，自动生成 commit message
 ### Step 2: 暂存并提交
 // turbo
 1. 运行 `git add .`
-2. 分析 diff 内容，自动生成简洁的中文 commit message，格式：`feat/fix/refactor/chore: 简要描述`
+2. 分析 diff 内容，按修改的文件/功能逐条列举，自动生成中文 commit message，格式：
+   ```
+   feat/fix/refactor/chore: 概要标题
+   
+   1️⃣、具体改动一
+   2️⃣、具体改动二
+   3️⃣、具体改动三
+   ```
 // turbo
 3. 运行 `git commit --no-verify -m '<生成的 commit message>'`
 
