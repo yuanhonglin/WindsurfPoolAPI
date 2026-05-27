@@ -458,6 +458,18 @@ code {
   overflow-x: auto;
   border-radius: var(--radius);
 }
+
+/* Sticky right-most column for wide tables */
+th.sticky-right,
+td.sticky-right {
+  position: sticky;
+  right: 0;
+  background: var(--surface-2, #17171c);
+  z-index: 1;
+}
+th.sticky-right {
+  z-index: 2;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1487,7 +1499,7 @@ tbody tr:hover td { background: var(--surface-2); }
       <div class="section-body tight">
         <div class="table-wrap">
           <table id="accounts-table">
-            <thead><tr><th style="width:32px"><input type="checkbox" id="acct-select-all" onchange="App.onSelectAllToggle(this.checked)"></th><th>ID</th><th>标签</th><th>层级</th><th>RPM</th><th>余额</th><th>有效期</th><th>可用模型</th><th>状态</th><th>错误</th><th>最后使用</th><th>Key</th><th>操作</th></tr></thead>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="acct-select-all" onchange="App.onSelectAllToggle(this.checked)"></th><th>ID</th><th>标签</th><th>层级</th><th>RPM</th><th>余额</th><th>有效期</th><th>周重置</th><th>可用模型</th><th>状态</th><th>错误</th><th>最后使用</th><th>Key</th><th class="sticky-right">操作</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -2360,6 +2372,7 @@ const App = {
         <td>${rpmCell}</td>
         <td>${creditCell}</td>
         <td>${(() => { const cr = a.credits; if (!cr || !cr.planEnd) return '<span class="text-xs text-dim">-</span>'; const end = new Date(cr.planEnd); const now = new Date(); const diff = Math.ceil((end - now) / 86400000); const color = diff <= 0 ? 'var(--error)' : diff <= 7 ? 'var(--warn, #f59e0b)' : 'var(--text)'; return `<span class="text-xs nowrap" style="color:${color}" title="到期: ${end.toLocaleDateString()}">${end.toLocaleDateString()}${diff <= 7 ? ' (' + (diff <= 0 ? '已过期' : diff + '天') + ')' : ''}</span>`; })()}</td>
+        <td>${(() => { const ts = a.credits?.weeklyResetAt; if (!ts) return '<span class="text-xs text-dim">-</span>'; const d = new Date(ts * 1000); const md = d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }); return `<span class="text-xs nowrap" title="周额度重置: ${d.toLocaleString()}">${md}</span>`; })()}</td>
         <td>${capsHtml}</td>
         <td><span class="badge ${a.status}">${a.status}</span>${rateLimitBadge}</td>
         <td style="color:${a.errorCount > 0 ? 'var(--error)' : 'inherit'}">${a.errorCount}</td>
@@ -2367,7 +2380,7 @@ const App = {
         <td class="nowrap">
           <code style="cursor:pointer" title="点击复制" onclick="App.copyKey('${this.esc(a.apiKey)}')">${a.keyPrefix}</code>
         </td>
-        <td class="nowrap">
+        <td class="nowrap sticky-right">
           <div class="btn-group">
             <button class="btn btn-ghost btn-xs" onclick="App.probeAccount('${a.id}')" title="探测能力">探测</button>
             <button class="btn btn-ghost btn-xs" onclick="App.refreshCredits('${a.id}')" title="刷新余额">余额</button>
@@ -2381,9 +2394,9 @@ const App = {
         </td>
       </tr>
       <tr id="${detailId}" class="account-detail-row" style="display:none">
-        <td colspan="13">${this.renderAccountDetail(a, ov)}</td>
+        <td colspan="14">${this.renderAccountDetail(a, ov)}</td>
       </tr>`;
-    }).join('') || '<tr class="empty-row"><td colspan="13">暂无账号，请先添加</td></tr>';
+    }).join('') || '<tr class="empty-row"><td colspan="14">暂无账号，请先添加</td></tr>';
   },
 
   toggleAccountDetail(rowId, btn) {
