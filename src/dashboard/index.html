@@ -2382,12 +2382,10 @@ const App = {
         </td>
         <td class="nowrap sticky-right">
           <div class="btn-group">
-            <button class="btn btn-ghost btn-xs" onclick="App.probeAccount('${a.id}')" title="探测能力">探测</button>
             <button class="btn btn-ghost btn-xs" onclick="App.refreshCredits('${a.id}')" title="刷新余额">余额</button>
             ${a.status === 'active'
               ? `<button class="btn btn-ghost btn-xs" onclick="App.toggleAccount('${a.id}','disabled')">停用</button>`
               : `<button class="btn btn-success btn-xs" onclick="App.toggleAccount('${a.id}','active')">启用</button>`}
-            <button class="btn btn-ghost btn-xs" onclick="App.resetErrors('${a.id}')">重置</button>
             <button class="btn btn-ghost btn-xs" onclick="App.openAccountCredentialModal('${a.id}')">账号详情</button>
             <button class="btn btn-ghost btn-xs" style="color:var(--error)" onclick="App.deleteAccount('${a.id}')">删除</button>
           </div>
